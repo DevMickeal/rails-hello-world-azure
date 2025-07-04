@@ -1,3 +1,6 @@
+output "action_group_id" {
+  value = azurerm_monitor_action_group.main.id
+}
 output "instrumentation_key" {
   value = azurerm_application_insights.main.instrumentation_key
   sensitive = true

@@ -280,216 +280,74 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
 ```
 
+
 ### 2. Azure Infrastructure Setup
 
-#### Terraform Configuration
+#### Terraform Infrastructure
 
-Create `terraform/main.tf`:
-```hcl
-terraform {
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.0"
-    }
-  }
-  
-  backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstaterailsapp"
-    container_name      = "tfstate"
-    key                 = "rails-app.tfstate"
-  }
-}
+This repository provides a complete, production-ready Terraform setup for deploying a Rails application and its dependencies (AKS, PostgreSQL, Redis, monitoring, security, and networking) on Azure.
 
-provider "azurerm" {
-  features {}
-}
+**Key Features:**
+- Multi-environment support: dev, staging, prod
+- Modular structure: each major resource is a separate module
+- Remote backend (Azure Storage Account) for state management
+- CI/CD ready: GitHub Actions workflows for automated deployment
+- Secure: No secrets are committed; all credentials are handled via environment variables or GitHub secrets
 
-# Variables
-variable "environment" {
-  default = "staging"
-}
+#### How to Use
 
-variable "location" {
-  default = "East US"
-}
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-org/rails-hello-world-azure.git
+   cd rails-hello-world-azure
+   ```
 
-variable "node_count" {
-  default = 3
-}
+2. **Configure Azure credentials**
+   - For CI/CD: Add `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` as GitHub repository secrets.
+   - For local use: Authenticate with `az login` or set the following environment variables:
+     ```bash
+     export ARM_CLIENT_ID=...
+     export ARM_CLIENT_SECRET=...
+     export ARM_TENANT_ID=...
+     export ARM_SUBSCRIPTION_ID=...
+     ```
 
-# Resource Group
-resource "azurerm_resource_group" "main" {
-  name     = "rails-app-${var.environment}-rg"
-  location = var.location
-  
-  tags = {
-    environment = var.environment
-    application = "rails-hello-world"
-  }
-}
+3. **Remote Backend**
+   - The backend is configured to use a single Azure Storage Account for all environments. The storage account and container can be bootstrapped using the provided script: `terraform/scripts/bootstrap-remote-backend.sh`.
 
-# Virtual Network
-resource "azurerm_virtual_network" "main" {
-  name                = "rails-app-${var.environment}-vnet"
-  address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-}
+4. **Environments**
+   - Each environment (dev, staging, prod) has its own directory under `terraform/environment/`.
+   - All variables are managed via `terraform.tfvars` files in each environment directory.
 
-resource "azurerm_subnet" "aks" {
-  name                 = "aks-subnet"
-  resource_group_name  = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.0.1.0/24"]
-}
+5. **CI/CD Pipeline**
+   - The repository includes a reusable GitHub Actions pipeline template and a multi-stage workflow (`deploy-all-env.yml`) that deploys dev, staging, and prod in order.
+   - Staging and production deployments require manual approval via GitHub Environments.
 
-resource "azurerm_subnet" "db" {
-  name                 = "db-subnet"
-  resource_group_name  = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.0.2.0/24"]
-  
-  delegation {
-    name = "postgresql"
-    service_delegation {
-      name    = "Microsoft.DBforPostgreSQL/flexibleServers"
-      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
-    }
-  }
-}
+6. **Manual Usage**
+   - To deploy manually:
+     ```bash
+     cd terraform/environment/dev   # or staging/prod
+     terraform init
+     terraform plan -out=tfplan
+     terraform apply tfplan
+     ```
 
-# AKS Cluster
-resource "azurerm_kubernetes_cluster" "main" {
-  name                = "rails-app-${var.environment}-aks"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  dns_prefix          = "rails-app-${var.environment}"
-  
-  default_node_pool {
-    name                = "default"
-    node_count          = var.node_count
-    vm_size            = "Standard_D2_v3"
-    vnet_subnet_id     = azurerm_subnet.aks.id
-    enable_auto_scaling = true
-    min_count          = 2
-    max_count          = 5
-  }
-  
-  identity {
-    type = "SystemAssigned"
-  }
-  
-  network_profile {
-    network_plugin    = "azure"
-    load_balancer_sku = "standard"
-  }
-  
-  azure_monitor_profile {
-    metrics {
-      enabled = true
-    }
-  }
-}
+7. **Cleanup**
+   - To destroy all resources:
+     ```bash
+     cd terraform/environment/dev   # or staging/prod
+     terraform destroy -auto-approve
+     ```
 
-# Container Registry
-resource "azurerm_container_registry" "main" {
-  name                = "railsapp${var.environment}acr"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  sku                = "Standard"
-  admin_enabled      = true
-}
+#### Additional Notes
 
-# PostgreSQL Flexible Server
-resource "azurerm_postgresql_flexible_server" "main" {
-  name                   = "rails-app-${var.environment}-psql"
-  location               = azurerm_resource_group.main.location
-  resource_group_name    = azurerm_resource_group.main.name
-  version                = "15"
-  administrator_login    = "railsadmin"
-  administrator_password = random_password.postgres.result
-  
-  sku_name              = "B_Standard_B2s"
-  storage_mb            = 32768
-  backup_retention_days = 7
-  
-  high_availability {
-    mode                      = "ZoneRedundant"
-    standby_availability_zone = "2"
-  }
-}
+- All secrets and sensitive values must be managed via Azure Key Vault or GitHub secrets.
+- The infrastructure is designed for extensibility and production-readiness, but you can easily scale it down for test/dev use.
+- For troubleshooting, see Azure Monitor, Application Insights, and the outputs of your GitHub Actions runs.
 
-resource "azurerm_postgresql_flexible_server_database" "main" {
-  name      = "rails_production"
-  server_id = azurerm_postgresql_flexible_server.main.id
-  charset   = "UTF8"
-  collation = "en_US.utf8"
-}
+---
 
-# Redis Cache
-resource "azurerm_redis_cache" "main" {
-  name                = "rails-app-${var.environment}-redis"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  capacity            = 1
-  family              = "C"
-  sku_name            = "Standard"
-  
-  redis_configuration {
-    enable_authentication = true
-  }
-}
-
-# Application Insights
-resource "azurerm_application_insights" "main" {
-  name                = "rails-app-${var.environment}-insights"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  application_type    = "web"
-}
-
-# Log Analytics Workspace
-resource "azurerm_log_analytics_workspace" "main" {
-  name                = "rails-app-${var.environment}-logs"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  sku                = "PerGB2018"
-  retention_in_days   = 30
-}
-
-# Password generation
-resource "random_password" "postgres" {
-  length  = 32
-  special = true
-}
-
-# Outputs
-output "kube_config" {
-  value     = azurerm_kubernetes_cluster.main.kube_config_raw
-  sensitive = true
-}
-
-output "acr_login_server" {
-  value = azurerm_container_registry.main.login_server
-}
-
-output "database_connection_string" {
-  value     = "postgresql://${azurerm_postgresql_flexible_server.main.administrator_login}:${random_password.postgres.result}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/${azurerm_postgresql_flexible_server_database.main.name}?sslmode=require"
-  sensitive = true
-}
-
-output "redis_connection_string" {
-  value     = "rediss://:${azurerm_redis_cache.main.primary_access_key}@${azurerm_redis_cache.main.hostname}:6380/0"
-  sensitive = true
-}
-
-output "application_insights_key" {
-  value     = azurerm_application_insights.main.instrumentation_key
-  sensitive = true
-}
-```
+For any issues, please open an issue or discussion in this repository.
 
 ### 3. Deploy Infrastructure
 

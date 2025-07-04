@@ -11,12 +11,12 @@ resource "azurerm_kubernetes_cluster" "main" {
     name                = "system"
     node_count          = var.system_node_count
     vm_size             = var.system_node_size
-    os_disk_size_gb     = 100
+    os_disk_size_gb     = var.os_disk_size_gb
     vnet_subnet_id      = var.aks_subnet_id
     type                = "VirtualMachineScaleSets"
     min_count           = var.system_node_min_count
     max_count           = var.system_node_max_count
-    max_pods            = 110
+    max_pods            = var.system_node_max_pods
 
     node_labels = {
       "nodepool-type" = "system"

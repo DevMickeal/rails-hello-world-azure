@@ -64,7 +64,8 @@ resource "azurerm_storage_account" "logs" {
 
 # Azure Monitor Workbook for Rails App
 resource "azurerm_application_insights_workbook" "rails_dashboard" {
-  name                = "${var.project_name}-${var.environment}-rails-dashboard"
+  # The name must be a valid UUID. Use uuidv5 for deterministic UUID based on project/environment/dashboard.
+  name                = uuidv5("6ba7b810-9dad-11d1-80b4-00c04fd430c8", "${var.project_name}-${var.environment}-rails-dashboard")
   location            = var.location
   resource_group_name = var.resource_group_name
   display_name        = "Rails Application Dashboard"

@@ -1,0 +1,70 @@
+# Reusable Terraform pipeline template for Azure
+name: Terraform Pipeline Template
+
+on:
+  workflow_call:
+    inputs:
+      env_dir:
+        required: true
+        type: string
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+
+jobs:
+  terraform:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env_dir }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+
+      - name: Bootstrap remote backend (if needed)
+        run: |
+          bash terraform/scripts/bootstrap-remote-backend.sh
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform/environment/${{ inputs.env_dir }}
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform/environment/${{ inputs.env_dir }}
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: terraform/environment/${{ inputs.env_dir }}
+
+      - name: Terraform Apply
+        if: github.event_name == 'workflow_call' || github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
+        working-directory: terraform/environment/${{ inputs.env_dir }}
+
+      - name: Logout Azure
+        if: always()
+        run: az logout

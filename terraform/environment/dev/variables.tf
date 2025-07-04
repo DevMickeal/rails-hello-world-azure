@@ -19,6 +19,7 @@ variable "azure_client_secret" {
   sensitive   = true
 }
 
+
 variable "project_name" {
   description = "Name of the project"
   type        = string
