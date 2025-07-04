@@ -8,6 +8,10 @@ on:
       - staging
       - develop
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy-dev:
     name: Deploy Development
