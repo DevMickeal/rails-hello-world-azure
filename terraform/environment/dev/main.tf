@@ -12,15 +12,12 @@ locals {
   }
 }
 
-
 # Create the resource group at the root, and pass its name to all modules
 resource "azurerm_resource_group" "main" {
   name     = "${var.project_name}-${local.environment}-rg"
   location = local.location
   tags     = local.common_tags
 }
-
-# Key development differences in module calls:
 
 # AKS Module - development sizing
 module "aks" {
@@ -49,53 +46,7 @@ module "aks" {
   common_tags = local.common_tags
 }
 
-# Database Module - Development HA
-module "database" {
-  action_group_id            = module.monitoring.action_group_id
-  database_subnet_id = module.networking.database_subnet_id
-  postgres_dns_zone_id = module.networking.postgres_dns_zone_id
-  postgresql_configurations = {
-    "shared_preload_libraries" = "pg_stat_statements"
-  }
-  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
-  key_vault_id               = module.security.key_vault_id
-  source = "../../modules/database"
-  project_name        = var.project_name
-  environment         = local.environment
-  location            = local.location
-  resource_group_name = azurerm_resource_group.main.name
-  postgresql_version    = "15"
-  administrator_login   = "railsadmin"
-  sku_name             = "B_Standard_B1ms"
-  storage_mb           = 32768
-  backup_retention_days = 30
-  standby_availability_zone = ""
-  common_tags = local.common_tags
-}
-
-# Redis Module - Development tier
-module "redis" {
-  action_group_id            = module.monitoring.action_group_id
-  redis_subnet_id   = module.networking.redis_subnet_id
-  redis_dns_zone_id = module.networking.redis_dns_zone_id
-  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
-  key_vault_id               = module.security.key_vault_id
-  maxmemory_reserved = 2
-  maxmemory_delta    = 2
-  backup_storage_connection_string = ""
-  source = "../../modules/redis"
-  project_name        = var.project_name
-  environment         = local.environment
-  location            = local.location
-  resource_group_name = azurerm_resource_group.main.name
-  capacity = 1
-  family   = "C"
-  sku_name = "Basic"
-  shard_count = 1
-  common_tags = local.common_tags
-}
-
-# Monitoring - Longer retention
+# Monitoring Module
 module "monitoring" {
   key_vault_id = module.security.key_vault_id
   source = "../../modules/monitoring"
@@ -108,9 +59,8 @@ module "monitoring" {
   webhook_receivers = []
   common_tags = local.common_tags
 }
-# Key development differences in module calls:
 
-# Networking Module
+# Networking Module (simplified)
 module "networking" {
   source = "../../modules/networking"
   project_name        = var.project_name
@@ -119,8 +69,6 @@ module "networking" {
   resource_group_name = azurerm_resource_group.main.name
   address_space       = ["10.1.0.0/16"]
   aks_subnet_cidr     = "10.1.0.0/20"
-  database_subnet_cidr = "10.1.16.0/24"
-  redis_subnet_cidr   = "10.1.17.0/24"
   appgw_subnet_cidr   = "10.1.18.0/24"
   common_tags = local.common_tags
 }

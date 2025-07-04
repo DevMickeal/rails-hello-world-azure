@@ -23,16 +23,6 @@ output "key_vault_name" {
   value       = module.security.key_vault_name
 }
 
-output "postgres_server_name" {
-  description = "PostgreSQL server name"
-  value       = module.database.server_name
-}
-
-output "redis_hostname" {
-  description = "Redis hostname"
-  value       = module.redis.hostname
-}
-
 output "application_insights_instrumentation_key" {
   description = "Application Insights instrumentation key"
   value       = module.monitoring.instrumentation_key

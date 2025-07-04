@@ -49,19 +49,6 @@ resource "azurerm_monitor_action_group" "main" {
   tags = var.common_tags
 }
 
-# Storage Account for Logs and Backups
-resource "azurerm_storage_account" "logs" {
-  name                     = "${var.project_name}${var.environment}logs"
-  resource_group_name      = var.resource_group_name
-  location                 = var.location
-  account_tier             = "Standard"
-  account_replication_type = var.environment == "production" ? "GRS" : "LRS"
-  
-  # Removed invalid attributes and blocks. Add valid blocks as needed for your azurerm provider version.
-
-  tags = var.common_tags
-}
-
 # Azure Monitor Workbook for Rails App
 resource "azurerm_application_insights_workbook" "rails_dashboard" {
   # The name must be a valid UUID. Use uuidv5 for deterministic UUID based on project/environment/dashboard.
