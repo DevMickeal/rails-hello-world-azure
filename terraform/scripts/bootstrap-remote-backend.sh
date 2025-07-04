@@ -7,7 +7,7 @@ set -e
 RESOURCE_GROUP="terraform-state-rg"
 STORAGE_ACCOUNT="tfstaterailsapp"
 CONTAINER_NAME="tfstate"
-LOCATION="eastus"
+LOCATION="northeurope"
 
 # Create resource group if it doesn't exist
 az group create --name $RESOURCE_GROUP --location $LOCATION
