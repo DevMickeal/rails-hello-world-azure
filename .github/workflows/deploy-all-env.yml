@@ -12,7 +12,7 @@ on:
 jobs:
   deploy-dev:
     name: Deploy Dev infra
-    uses: ./.github/workflows/pipeline-templates/deploy-infra.yml
+    uses: ./.github/workflows/deploy-infra.yml
     with:
       env_dir: dev
     secrets: inherit
@@ -20,7 +20,7 @@ jobs:
   deploy-staging:
     name: Deploy Staging infra
     needs: deploy-dev
-    uses: ./.github/workflows/pipeline-templates/deploy-infra.yml
+    uses: ./.github/workflows/deploy-infra.yml
     with:
       env_dir: staging
     secrets: inherit
@@ -29,7 +29,7 @@ jobs:
     name: Deploy Prod infra
     if: github.ref == 'refs/heads/main'
     needs: deploy-staging
-    uses: ./.github/workflows/pipeline-templates/deploy-infra.yml
+    uses: ./.github/workflows/deploy-infra.yml
     with:
       env_dir: prod
     secrets: inherit
