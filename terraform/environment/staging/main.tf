@@ -1,0 +1,185 @@
+terraform {
+  required_version = ">= 1.5.0"
+  
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.75"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5"
+    }
+  }
+
+  backend "azurerm" {
+    resource_group_name  = "terraform-state-rg"
+    storage_account_name = "tfstaterailsapp"
+    container_name       = "tfstate"
+    key                  = "staging/terraform.tfstate"
+  }
+}
+
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy = false
+    }
+  }
+}
+
+locals {
+  environment = "staging"
+  location    = var.location
+  
+  common_tags = {
+    Environment     = local.environment
+    Project         = var.project_name
+    ManagedBy       = "Terraform"
+    LastUpdated     = timestamp()
+    CostCenter      = var.cost_center
+    Owner           = var.owner_email
+  }
+}
+
+# Resource Group
+resource "azurerm_resource_group" "main" {
+  name     = "${var.project_name}-${local.environment}-rg"
+  location = local.location
+
+  tags = local.common_tags
+}
+
+# Networking Module
+module "networking" {
+  source = "../../modules/networking"
+
+  project_name        = var.project_name
+  environment         = local.environment
+  location            = local.location
+  resource_group_name = azurerm_resource_group.main.name
+  
+  address_space       = ["10.1.0.0/16"]
+  aks_subnet_cidr     = "10.1.0.0/20"
+  database_subnet_cidr = "10.1.16.0/24"
+  redis_subnet_cidr   = "10.1.17.0/24"
+  appgw_subnet_cidr   = "10.1.18.0/24"
+  
+  common_tags = local.common_tags
+}
+
+# Security Module
+module "security" {
+  source = "../../modules/security"
+
+  project_name        = var.project_name
+  environment         = local.environment
+  location            = local.location
+  resource_group_name = azurerm_resource_group.main.name
+  
+  allowed_ips        = var.allowed_ips
+  allowed_subnet_ids = [module.networking.aks_subnet_id, module.networking.appgw_subnet_id]
+  aks_cluster_id     = module.aks.cluster_id
+  common_tags        = local.common_tags
+}
+
+# Monitoring Module
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project_name        = var.project_name
+  environment         = local.environment
+  location            = local.location
+  resource_group_name = azurerm_resource_group.main.name
+  
+  retention_in_days = 30
+  alert_email       = var.alert_email
+  
+  webhook_receivers = []
+  
+  key_vault_id = module.security.key_vault_id
+  
+  common_tags = local.common_tags
+}
+
+# AKS Module
+module "aks" {
+  source = "../../modules/aks"
+
+  project_name        = var.project_name
+  environment         = local.environment
+  location            = local.location
+  resource_group_name = azurerm_resource_group.main.name
+  
+  kubernetes_version = "1.28.3"
+  
+  # System node pool
+  system_node_count     = 2
+  system_node_size      = "Standard_D2s_v5"
+  system_node_min_count = 2
+  system_node_max_count = 4
+  
+  # User node pool
+  user_node_count     = 2
+  user_node_size      = "Standard_D4s_v5"
+  user_node_min_count = 2
+  user_node_max_count = 6
+  
+  aks_subnet_id              = module.networking.aks_subnet_id
+  appgw_subnet_id            = module.networking.appgw_subnet_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  key_vault_id               = module.security.key_vault_id
+  admin_group_object_ids     = var.aks_admin_group_ids
+  
+  acr_sku = "Standard"
+  
+  common_tags = local.common_tags
+}
+
+# Database Module
+module "database" {
+  source = "../../modules/database"
+
+  project_name        = var.project_name
+  environment         = local.environment
+  location            = local.location
+  resource_group_name = azurerm_resource_group.main.name
+  
+  postgresql_version         = "15"
+  administrator_login        = "railsadmin"
+  sku_name                   = "B_Standard_B2s"
+  storage_mb                 = 32768
+  backup_retention_days      = 7
+  standby_availability_zone  = "1"
+  database_subnet_id         = module.networking.database_subnet_id
+  postgres_dns_zone_id       = module.networking.postgres_dns_zone_id
+  postgresql_configurations  = {}
+  key_vault_id               = module.security.key_vault_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  action_group_id            = module.monitoring.action_group_id
+  common_tags                = local.common_tags
+}
+
+# Redis Module
+module "redis" {
+  source = "../../modules/redis"
+
+  project_name        = var.project_name
+  environment         = local.environment
+  location            = local.location
+  resource_group_name = azurerm_resource_group.main.name
+  
+  capacity                        = 1
+  family                          = "C"
+  sku_name                        = "Standard"
+  shard_count                     = 1
+  maxmemory_reserved              = 10
+  maxmemory_delta                 = 10
+  backup_storage_connection_string = ""
+  redis_subnet_id                 = module.networking.redis_subnet_id
+  redis_dns_zone_id               = module.networking.redis_dns_zone_id
+  key_vault_id                    = module.security.key_vault_id
+  log_analytics_workspace_id      = module.monitoring.log_analytics_workspace_id
+  action_group_id                 = module.monitoring.action_group_id
+  common_tags                     = local.common_tags
+}

@@ -1,0 +1,9 @@
+variable "project_name" { type = string }
+variable "environment" { type = string }
+variable "location" { type = string }
+variable "resource_group_name" { type = string }
+variable "retention_in_days" { type = number }
+variable "alert_email" { type = string }
+variable "webhook_receivers" { type = list(string) }
+variable "key_vault_id" { type = string }
+variable "common_tags" { type = map(string) }

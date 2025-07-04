@@ -1,0 +1,95 @@
+# GitHub Actions workflow for deploying Terraform to Azure
+# This workflow supports both staging and production environments.
+# It uses OIDC for secure authentication to Azure.
+
+name: 'Terraform Deploy to Azure'
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+env:
+  TF_VERSION: '1.7.5'
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+jobs:
+  terraform:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+
+      - name: Select environment
+        id: select-env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "env_dir=prod" >> $GITHUB_OUTPUT
+          else
+            echo "env_dir=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Terraform Init
+        working-directory: terraform/environment/${{ steps.select-env.outputs.env_dir }}
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        working-directory: terraform/environment/${{ steps.select-env.outputs.env_dir }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform/environment/${{ steps.select-env.outputs.env_dir }}
+        run: terraform plan -input=false -out=tfplan
+        env:
+          ARM_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ env.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: terraform/environment/prod
+        run: terraform apply -input=false -auto-approve tfplan
+        env:
+          ARM_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ env.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Apply (Staging)
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+        working-directory: terraform/environment/staging
+        run: terraform apply -input=false -auto-approve tfplan
+        env:
+          ARM_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ env.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Logout Azure
+        run: az logout
+        if: always()

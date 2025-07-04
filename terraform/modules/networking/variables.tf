@@ -1,0 +1,10 @@
+variable "project_name" { type = string }
+variable "environment" { type = string }
+variable "location" { type = string }
+variable "resource_group_name" { type = string }
+variable "address_space" { type = list(string) }
+variable "aks_subnet_cidr" { type = string }
+variable "database_subnet_cidr" { type = string }
+variable "redis_subnet_cidr" { type = string }
+variable "appgw_subnet_cidr" { type = string }
+variable "common_tags" { type = map(string) }

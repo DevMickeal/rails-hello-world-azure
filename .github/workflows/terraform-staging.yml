@@ -1,0 +1,51 @@
+name: Terraform Deploy (Staging)
+
+on:
+  push:
+    branches:
+      - staging
+  pull_request:
+    branches:
+      - staging
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    name: 'Terraform Apply (Staging)'
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: ./terraform/environment/staging
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/staging' && github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
