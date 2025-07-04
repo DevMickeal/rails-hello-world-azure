@@ -1,5 +1,4 @@
-# Multi-stage pipeline to deploy all environments using the reusable template
-name: Terraform Multi-Stage Deploy
+name: Deploy All Environments
 
 on:
   workflow_dispatch:
@@ -9,16 +8,20 @@ on:
       - staging
       - develop
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy-dev:
-    name: Deploy Dev infra
+    name: Deploy Development
     uses: ./.github/workflows/deploy-infra.yml
     with:
       env_dir: dev
     secrets: inherit
 
   deploy-staging:
-    name: Deploy Staging infra
+    name: Deploy Staging
     needs: deploy-dev
     uses: ./.github/workflows/deploy-infra.yml
     with:
@@ -26,7 +29,7 @@ jobs:
     secrets: inherit
 
   deploy-prod:
-    name: Deploy Prod infra
+    name: Deploy Production
     if: github.ref == 'refs/heads/main'
     needs: deploy-staging
     uses: ./.github/workflows/deploy-infra.yml
