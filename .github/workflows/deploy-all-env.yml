@@ -9,7 +9,6 @@ on:
       - develop
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
