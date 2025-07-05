@@ -18,6 +18,11 @@ output "acr_login_server" {
   value       = module.aks.acr_login_server
 }
 
+output "postgres_server_name" {
+  description = "PostgreSQL server name"
+  value       = module.database.server_name
+}
+
 output "application_insights_instrumentation_key" {
   description = "Application Insights instrumentation key"
   value       = module.monitoring.instrumentation_key

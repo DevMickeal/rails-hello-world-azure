@@ -40,6 +40,28 @@ resource "azurerm_subnet" "appgw" {
   ]
 }
 
+# Database Subnet
+resource "azurerm_subnet" "database" {
+  name                 = "database-subnet"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.database_subnet_cidr]
+
+  delegation {
+    name = "postgresql"
+    service_delegation {
+      name = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+      ]
+    }
+  }
+
+  service_endpoints = [
+    "Microsoft.Sql"
+  ]
+}
+
 # Network Security Groups
 resource "azurerm_network_security_group" "aks" {
   name                = "${var.project_name}-${var.environment}-aks-nsg"
@@ -76,4 +98,19 @@ resource "azurerm_network_security_group" "aks" {
 resource "azurerm_subnet_network_security_group_association" "aks" {
   subnet_id                 = azurerm_subnet.aks.id
   network_security_group_id = azurerm_network_security_group.aks.id
+}
+
+# Private DNS Zone for PostgreSQL
+resource "azurerm_private_dns_zone" "postgres" {
+  name                = "privatelink.postgres.database.azure.com"
+  resource_group_name = var.resource_group_name
+
+  tags = var.common_tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
+  name                  = "${var.project_name}-${var.environment}-postgres-link"
+  resource_group_name   = var.resource_group_name
+  private_dns_zone_name = azurerm_private_dns_zone.postgres.name
+  virtual_network_id    = azurerm_virtual_network.main.id
 }

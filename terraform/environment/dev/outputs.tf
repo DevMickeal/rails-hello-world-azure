@@ -34,3 +34,8 @@ output "log_analytics_workspace_id" {
   description = "Log Analytics workspace ID"
   value       = module.monitoring.log_analytics_workspace_id
 }
+
+output "postgres_server_name" {
+  description = "PostgreSQL server name"
+  value       = module.database.server_name
+}

@@ -49,6 +49,33 @@ module "aks" {
   common_tags = local.common_tags
 }
 
+# Database Module - Production HA
+module "database" {
+  source = "../../modules/database"
+  project_name        = var.project_name
+  environment         = local.environment
+  location            = local.location
+  resource_group_name = azurerm_resource_group.main.name
+  postgresql_version    = "15"
+  administrator_login   = "railsadmin"
+  sku_name             = "GP_Standard_D2s_v3"
+  storage_mb           = 32768
+  backup_retention_days = 30
+  standby_availability_zone = ""
+  database_subnet_id = module.networking.database_subnet_id
+  postgres_dns_zone_id = module.networking.postgres_dns_zone_id
+  postgresql_configurations = {
+    "shared_preload_libraries" = "pg_stat_statements"
+    "pg_stat_statements.track" = "all"
+    "log_statement"            = "all"
+    "log_min_duration_statement" = "1000"
+  }
+  key_vault_id               = module.security.key_vault_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  action_group_id            = module.monitoring.action_group_id
+  common_tags = local.common_tags
+}
+
 # Monitoring - Longer retention
 module "monitoring" {
   key_vault_id = module.security.key_vault_id
@@ -72,6 +99,7 @@ module "networking" {
   resource_group_name = azurerm_resource_group.main.name
   address_space       = ["10.1.0.0/16"]
   aks_subnet_cidr     = "10.1.0.0/20"
+  database_subnet_cidr = "10.1.16.0/24"
   appgw_subnet_cidr   = "10.1.18.0/24"
   common_tags = local.common_tags
 }
