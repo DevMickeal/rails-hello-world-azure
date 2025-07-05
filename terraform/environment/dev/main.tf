@@ -37,7 +37,7 @@ module "aks" {
   system_node_size      = "Standard_B2s"
   system_node_min_count = 1
   system_node_max_count = 1 
-  system_node_max_pods  = 3
+  system_node_max_pods  = 10
   user_node_count       = 0
   user_node_size        = "Standard_B2s"
   user_node_min_count   = 0
