@@ -79,7 +79,7 @@ module "aks" {
   environment         = local.environment
   location            = local.location
   resource_group_name = azurerm_resource_group.main.name
-  kubernetes_version  = "1.29.15"
+  kubernetes_version  = "1.28.101"
   os_disk_size_gb     = 64
   system_node_count     = 2
   system_node_size      = "Standard_D2s_v5"
@@ -112,7 +112,6 @@ module "database" {
   sku_name                   = "B_Standard_B1ms"
   storage_mb                 = 32768
   backup_retention_days      = 0
-  standby_availability_zone  = ""
   database_subnet_id         = module.networking.database_subnet_id
   postgres_dns_zone_id       = module.networking.postgres_dns_zone_id
   postgresql_configurations  = {

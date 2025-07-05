@@ -7,7 +7,6 @@ variable "administrator_login" { type = string }
 variable "sku_name" { type = string }
 variable "storage_mb" { type = number }
 variable "backup_retention_days" { type = number }
-variable "standby_availability_zone" { type = string }
 variable "postgresql_version" { type = string }
 variable "common_tags" { type = map(string) }
 variable "postgresql_configurations" { type = map(string) }
