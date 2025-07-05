@@ -5,7 +5,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   location            = var.location
   resource_group_name = var.resource_group_name
   dns_prefix          = "${var.project_name}-${var.environment}"
-  kubernetes_version  = var.kubernetes_version
+  //kubernetes_version  = var.kubernetes_version
 
   default_node_pool {
     name                = "system"
