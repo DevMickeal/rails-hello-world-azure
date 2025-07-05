@@ -21,7 +21,8 @@ resource "azurerm_postgresql_flexible_server" "main" {
   sku_name   = var.sku_name
   storage_mb = var.storage_mb
 
-  backup_retention_days        = var.backup_retention_days
+  # CHANGED: Backup only for production
+  backup_retention_days        = var.environment == "production" ? var.backup_retention_days : 7  # Minimum is 7, not 0
   geo_redundant_backup_enabled = var.environment == "production" ? true : false
 
   dynamic "high_availability" {
@@ -97,8 +98,9 @@ resource "azurerm_key_vault_secret" "postgres_connection_string" {
   tags = var.common_tags
 }
 
-# Diagnostic Settings
+# CHANGED: Diagnostic Settings - Only for production
 resource "azurerm_monitor_diagnostic_setting" "postgres" {
+  count                      = var.environment == "production" ? 1 : 0
   name                       = "${var.project_name}-${var.environment}-postgres-diag"
   target_resource_id         = azurerm_postgresql_flexible_server.main.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
@@ -106,10 +108,15 @@ resource "azurerm_monitor_diagnostic_setting" "postgres" {
   enabled_log {
     category = "PostgreSQLLogs"
   }
+
+  metric {
+    category = "AllMetrics"
+  }
 }
 
-# Alerts
+# CHANGED: Alerts - Only for production
 resource "azurerm_monitor_metric_alert" "postgres_cpu" {
+  count               = var.environment == "production" ? 1 : 0
   name                = "${var.project_name}-${var.environment}-postgres-cpu"
   resource_group_name = var.resource_group_name
   scopes              = [azurerm_postgresql_flexible_server.main.id]
@@ -131,6 +138,7 @@ resource "azurerm_monitor_metric_alert" "postgres_cpu" {
 }
 
 resource "azurerm_monitor_metric_alert" "postgres_storage" {
+  count               = var.environment == "production" ? 1 : 0
   name                = "${var.project_name}-${var.environment}-postgres-storage"
   resource_group_name = var.resource_group_name
   scopes              = [azurerm_postgresql_flexible_server.main.id]
