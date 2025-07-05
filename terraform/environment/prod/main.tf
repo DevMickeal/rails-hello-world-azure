@@ -34,7 +34,7 @@ module "aks" {
   environment         = local.environment
   location            = local.location
   resource_group_name = azurerm_resource_group.main.name
-  kubernetes_version  = "1.28.3"
+  kubernetes_version  = "1.27.9"
   os_disk_size_gb = 128
   system_node_count     = 3
   system_node_size      = "Standard_D4s_v5"
