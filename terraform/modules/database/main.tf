@@ -25,6 +25,7 @@ resource "azurerm_postgresql_flexible_server" "main" {
 
   delegated_subnet_id = var.database_subnet_id
   private_dns_zone_id = var.postgres_dns_zone_id
+  public_network_access_enabled = false
 
   maintenance_window {
     day_of_week  = 0

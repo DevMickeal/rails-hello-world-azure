@@ -14,8 +14,9 @@ resource "azurerm_kubernetes_cluster" "main" {
     os_disk_size_gb     = var.os_disk_size_gb
     vnet_subnet_id      = var.aks_subnet_id
     type                = "VirtualMachineScaleSets"
-    min_count           = var.system_node_min_count
-    max_count           = var.system_node_max_count
+    auto_scaling_enabled = var.system_node_min_count != var.system_node_max_count
+    min_count           = var.system_node_min_count != var.system_node_max_count ? var.system_node_min_count : null
+    max_count           = var.system_node_min_count != var.system_node_max_count ? var.system_node_max_count : null
     max_pods            = var.system_node_max_pods
 
     node_labels = {
@@ -103,8 +104,9 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   vm_size               = var.user_node_size
   node_count            = var.user_node_count
   vnet_subnet_id        = var.aks_subnet_id
-  min_count             = var.user_node_min_count
-  max_count             = var.user_node_max_count
+  auto_scaling_enabled  = var.user_node_min_count != var.user_node_max_count
+  min_count             = var.user_node_min_count != var.user_node_max_count ? var.user_node_min_count : null
+  max_count             = var.user_node_min_count != var.user_node_max_count ? var.user_node_max_count : null
   max_pods              = 110
   os_disk_size_gb       = 100
 
