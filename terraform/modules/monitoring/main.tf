@@ -29,10 +29,12 @@ resource "azurerm_application_insights" "main" {
 resource "azurerm_monitor_action_group" "main" {
   name                = "${var.project_name}-${var.environment}-ag"
   resource_group_name = var.resource_group_name
-  short_name          = "${substr(var.project_name, 0, 9)}-${substr(var.environment, 0, 3)}"
+  short_name          = "${substr(var.project_name, 0, 8)}${substr(var.environment, 0, 2)}"
+  enabled             = true
+  tags                = var.common_tags
 
   email_receiver {
-    name                    = "sendtodevops"
+    name                    = "default"
     email_address           = var.alert_email
     use_common_alert_schema = true
   }
@@ -45,8 +47,6 @@ resource "azurerm_monitor_action_group" "main" {
       use_common_alert_schema = true
     }
   }
-
-  tags = var.common_tags
 }
 
 # Azure Monitor Workbook for Rails App

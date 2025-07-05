@@ -27,6 +27,9 @@ resource "azurerm_postgresql_flexible_server" "main" {
   private_dns_zone_id = var.postgres_dns_zone_id
   public_network_access_enabled = false
 
+  # Conditionally apply zone only in production
+  zone = var.environment == "production" ? "2" : null
+
   # High availability only for production
   dynamic "high_availability" {
     for_each = var.environment == "production" ? [1] : []
