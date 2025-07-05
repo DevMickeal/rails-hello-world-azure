@@ -28,7 +28,7 @@ resource "azurerm_postgresql_flexible_server" "main" {
   public_network_access_enabled = false
 
   # Conditionally apply zone only in production
-  zone = var.environment == "production" ? "2" : null
+  zone = var.environment == "production" ? "2" : "1"
 
   # High availability only for production
   dynamic "high_availability" {
