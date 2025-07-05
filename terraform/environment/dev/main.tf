@@ -90,7 +90,7 @@ module "security" {
   common_tags = local.common_tags
 }
 
-# Database Module - Development (No backups, no HA)
+# Database Module - Development (minimal backup)
 module "database" {
   source = "../../modules/database"
   project_name        = var.project_name
@@ -101,7 +101,7 @@ module "database" {
   administrator_login   = "railsadmin"
   sku_name             = "B_Standard_B1ms"
   storage_mb           = 32768
-  backup_retention_days = 0
+  backup_retention_days = 7
   standby_availability_zone = ""
   database_subnet_id = module.networking.database_subnet_id
   postgres_dns_zone_id = module.networking.postgres_dns_zone_id

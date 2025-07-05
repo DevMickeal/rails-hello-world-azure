@@ -134,8 +134,6 @@ resource "azurerm_container_registry" "main" {
   sku                 = var.acr_sku
   admin_enabled       = false
 
-  # NOTE: georeplications, retention_policy, and trust_policy are not valid in this resource for current provider version. Remove or use azurerm_container_registry_scope_map or azurerm_container_registry_replication if needed.
-
   tags = var.common_tags
 }
 

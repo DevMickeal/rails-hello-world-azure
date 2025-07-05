@@ -9,7 +9,7 @@ resource "random_password" "postgres_admin" {
   numeric = true
 }
 
-# PostgreSQL Flexible Server
+# PostgreSQL Flexible Server (uses delegated subnet directly)
 resource "azurerm_postgresql_flexible_server" "main" {
   name                   = "${var.project_name}-${var.environment}-psql"
   resource_group_name    = var.resource_group_name
@@ -17,48 +17,19 @@ resource "azurerm_postgresql_flexible_server" "main" {
   version                = var.postgresql_version
   administrator_login    = var.administrator_login
   administrator_password = random_password.postgres_admin.result
+  storage_mb             = var.storage_mb
+  sku_name               = var.sku_name
   
-  sku_name   = var.sku_name
-  storage_mb = var.storage_mb
+  # Conditional backup retention - only for production
+  backup_retention_days  = var.environment == "production" ? 30 : 7
 
-  # CHANGED: Backup only for production
-  backup_retention_days        = var.environment == "production" ? var.backup_retention_days : 7  # Minimum is 7, not 0
-  geo_redundant_backup_enabled = var.environment == "production" ? true : false
-
-  dynamic "high_availability" {
-    for_each = var.environment == "production" ? [1] : []
-    content {
-      mode                      = "ZoneRedundant"
-      standby_availability_zone = var.standby_availability_zone
-    }
-  }
+  delegated_subnet_id = var.database_subnet_id
+  private_dns_zone_id = var.postgres_dns_zone_id
 
   maintenance_window {
     day_of_week  = 0
-    start_hour   = 23
+    start_hour   = 2
     start_minute = 0
-  }
-
-  tags = var.common_tags
-}
-
-# Private Endpoint for PostgreSQL
-resource "azurerm_private_endpoint" "postgres" {
-  name                = "${var.project_name}-${var.environment}-psql-pe"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  subnet_id           = var.database_subnet_id
-
-  private_service_connection {
-    name                           = "${var.project_name}-${var.environment}-psql-psc"
-    private_connection_resource_id = azurerm_postgresql_flexible_server.main.id
-    subresource_names              = ["postgresqlServer"]
-    is_manual_connection           = false
-  }
-
-  private_dns_zone_group {
-    name                 = "postgres-dns-zone-group"
-    private_dns_zone_ids = [var.postgres_dns_zone_id]
   }
 
   tags = var.common_tags
