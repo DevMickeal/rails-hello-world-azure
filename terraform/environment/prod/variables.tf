@@ -21,12 +21,6 @@ variable "alert_email" {
   type        = string
 }
 
-variable "slack_webhook_url" {
-  description = "Slack webhook URL for notifications"
-  type        = string
-  sensitive   = true
-}
-
 variable "aks_admin_group_ids" {
   description = "Azure AD group IDs for AKS administrators"
   type        = list(string)
@@ -41,4 +35,16 @@ variable "cost_center" {
 variable "owner_email" {
   description = "Email of the resource owner"
   type        = string
+}
+
+variable "database_sku" {
+  description = "Database SKU"
+  type        = string
+  default     = "GP_Standard_D2s_v3"
+}
+
+variable "database_storage_mb" {
+  description = "Database storage in MB"
+  type        = number
+  default     = 32768
 }

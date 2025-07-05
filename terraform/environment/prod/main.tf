@@ -1,19 +1,18 @@
 locals {
   environment = "production"
   location    = var.location
-  
+
   common_tags = {
-    Environment     = local.environment
-    Project         = var.project_name
-    ManagedBy       = "Terraform"
-    LastUpdated     = timestamp()
-    CostCenter      = var.cost_center
-    Owner           = var.owner_email
-    Compliance      = "PCI-DSS"
+    Environment        = local.environment
+    Project            = var.project_name
+    ManagedBy          = "Terraform"
+    LastUpdated        = timestamp()
+    CostCenter         = var.cost_center
+    Owner              = var.owner_email
+    Compliance         = "PCI-DSS"
     DataClassification = "Confidential"
   }
 }
-
 
 # Create the resource group at the root, and pass its name to all modules
 resource "azurerm_resource_group" "main" {
@@ -22,99 +21,88 @@ resource "azurerm_resource_group" "main" {
   tags     = local.common_tags
 }
 
-# AKS Module - Production sizing
-module "aks" {
-  aks_subnet_id              = module.networking.aks_subnet_id
-  appgw_subnet_id            = module.networking.appgw_subnet_id
-  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
-  key_vault_id               = module.security.key_vault_id
-  admin_group_object_ids     = var.aks_admin_group_ids
-  source = "../../modules/aks"
-  project_name        = var.project_name
-  environment         = local.environment
-  location            = local.location
-  resource_group_name = azurerm_resource_group.main.name
-  kubernetes_version  = "1.28.101"
-  os_disk_size_gb = 128
-  system_node_count     = 3
-  system_node_size      = "Standard_D4s_v5"
-  system_node_min_count = 3
-  system_node_max_count = 6
-  system_node_max_pods  = 30
-  user_node_count     = 3
-  user_node_size      = "Standard_D8s_v5"
-  user_node_min_count = 3
-  user_node_max_count = 10
-  acr_sku = "Premium"
-  common_tags = local.common_tags
+# Networking Module
+module "networking" {
+  source               = "../../modules/networking"
+  project_name         = var.project_name
+  environment          = local.environment
+  location             = local.location
+  resource_group_name  = azurerm_resource_group.main.name
+  address_space        = ["10.1.0.0/16"]
+  aks_subnet_cidr      = "10.1.0.0/20"
+  database_subnet_cidr = "10.1.16.0/24"
+  appgw_subnet_cidr    = "10.1.18.0/24"
+  common_tags          = local.common_tags
 }
 
-# Database Module - Production HA
-module "database" {
-  source = "../../modules/database"
+# Security Module
+module "security" {
+  source              = "../../modules/security"
   project_name        = var.project_name
   environment         = local.environment
   location            = local.location
   resource_group_name = azurerm_resource_group.main.name
-  postgresql_version    = "15"
-  administrator_login   = "railsadmin"
-  sku_name             = "GP_Standard_D2s_v3"
-  storage_mb           = 32768
-  backup_retention_days = 30
-  database_subnet_id = module.networking.database_subnet_id
-  postgres_dns_zone_id = module.networking.postgres_dns_zone_id
-  postgresql_configurations = {
-    "shared_preload_libraries" = "pg_stat_statements"
-    "pg_stat_statements.track" = "all"
-    "log_statement"            = "all"
-    "log_min_duration_statement" = "1000"
-  }
-  key_vault_id               = module.security.key_vault_id
-  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
-  action_group_id            = module.monitoring.action_group_id
+  allowed_ips         = var.allowed_ips
+  allowed_subnet_ids = [
+    module.networking.aks_subnet_id,
+    module.networking.appgw_subnet_id
+  ]
   common_tags = local.common_tags
 }
 
 # Monitoring - Longer retention
 module "monitoring" {
-  key_vault_id = module.security.key_vault_id
-  source = "../../modules/monitoring"
+  source              = "../../modules/monitoring"
   project_name        = var.project_name
   environment         = local.environment
   location            = local.location
   resource_group_name = azurerm_resource_group.main.name
-  retention_in_days = 90
-  alert_email       = var.alert_email
-  webhook_receivers = []
-  common_tags = local.common_tags
+  retention_in_days   = 90
+  alert_email         = var.alert_email
+  webhook_receivers   = []
+  key_vault_id        = module.security.key_vault_id
+  common_tags         = local.common_tags
 }
 
-# Networking Module
-module "networking" {
-  source = "../../modules/networking"
+# AKS Module - Production sizing
+module "aks" {
+  source              = "../../modules/aks"
   project_name        = var.project_name
   environment         = local.environment
   location            = local.location
   resource_group_name = azurerm_resource_group.main.name
-  address_space       = ["10.1.0.0/16"]
-  aks_subnet_cidr     = "10.1.0.0/20"
-  database_subnet_cidr = "10.1.16.0/24"
-  appgw_subnet_cidr   = "10.1.18.0/24"
-  common_tags = local.common_tags
+  subnet_id           = module.networking.aks_subnet_id
+
+  admin_group_ids            = var.aks_admin_group_ids
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  create_user_node_pool      = true
+  enable_acr_geo_replication = true
+  tags                       = local.common_tags
 }
 
-# Security Module
-module "security" {
-  source = "../../modules/security"
-  project_name        = var.project_name
-  environment         = local.environment
-  location            = local.location
-  resource_group_name = azurerm_resource_group.main.name
-  allowed_ips = var.allowed_ips
-  allowed_subnet_ids = [
-    module.networking.aks_subnet_id,
-    module.networking.appgw_subnet_id
-  ]
-  aks_cluster_id = module.aks.cluster_id
-  common_tags = local.common_tags
+# Database Module - Production HA
+module "database" {
+  source                = "../../modules/database"
+  project_name          = var.project_name
+  environment           = local.environment
+  location              = local.location
+  resource_group_name   = azurerm_resource_group.main.name
+  postgresql_version    = "15"
+  administrator_login   = "railsadmin"
+  sku_name              = var.database_sku
+  storage_mb            = var.database_storage_mb
+  backup_retention_days = 30
+  database_subnet_id    = module.networking.database_subnet_id
+  postgres_dns_zone_id  = module.networking.postgres_dns_zone_id
+  postgresql_configurations = {
+    "shared_preload_libraries"   = "pg_stat_statements"
+    "pg_stat_statements.track"   = "all"
+    "log_statement"              = "all"
+    "log_min_duration_statement" = "1000"
+  }
+  key_vault_id               = module.security.key_vault_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  action_group_id            = module.monitoring.action_group_id
+  common_tags                = local.common_tags
 }
+

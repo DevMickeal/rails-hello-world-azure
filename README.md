@@ -2,7 +2,71 @@
 
 ## Overview
 
-This repository contains a production-ready Rails "Hello World" application with PostgreSQL and Redis, designed to run on Azure Kubernetes Service (AKS) with comprehensive monitoring and observability.
+This repository contains a production-ready Rails "Hello World" application, deployed on Azure Kubernetes Service (AKS) with PostgreSQL (and optionally Redis) running as in-cluster workloads. The infrastructure is managed with Terraform, following best practices for security, modularity, and environment-specific configuration.
+
+## Architecture
+
+- **AKS Cluster**: Runs Rails, PostgreSQL, and (optionally) Redis as Kubernetes workloads.
+- **Azure Key Vault**: Stores secrets and connection strings, accessed via RBAC.
+- **Azure Container Registry**: Stores Docker images for deployment.
+- **Azure Log Analytics & Application Insights**: Centralized monitoring and observability.
+- **Private Networking**: All critical resources are isolated in a VNet with private endpoints.
+
+## Prerequisites
+
+- **Azure CLI** (>= 2.50.0)
+- **kubectl** (>= 1.28)
+- **Helm** (>= 3.12)
+- **Terraform** (>= 1.5)
+- **Docker** (>= 24.0)
+- **Ruby** (>= 3.2) with Rails (>= 7.1)
+
+## Infrastructure Deployment
+
+Each environment (dev, staging, prod) has its own configuration in `terraform/environment/<env>`. To deploy:
+
+```sh
+cd terraform/environment/dev   # or staging/prod
+terraform init
+terraform plan -var-file=dev.tfvars
+terraform apply -var-file=dev.tfvars
+```
+
+- All environment-specific settings (e.g., node size, DB SKU) are set via variables and `tfvars` files.
+- Kubernetes version is not hardcoded; the latest supported version is used automatically.
+
+## Environment Structure
+
+- `terraform/environment/dev` – Development environment
+- `terraform/environment/staging` – Staging environment
+- `terraform/environment/prod` – Production environment
+
+Each contains:
+- `main.tf`, `variables.tf`, and (optionally) `dev.tfvars` for configuration.
+
+## Best Practices
+
+- **No hardcoded Kubernetes version**: Always uses the latest supported version.
+- **DRY and modular**: All common logic is in modules, with environment-specific overrides.
+- **Security**: Uses RBAC, private endpoints, and managed identities.
+- **Validated**: All environments pass `terraform validate` and are ready for production.
+
+## Application Setup (Rails)
+
+1. **Clone the repository and set up Ruby/Rails dependencies**
+2. **Configure your database and Redis connection strings via environment variables**
+3. **Deploy your application to AKS using Helm or kubectl**
+
+## Monitoring & Observability
+
+- Application Insights and Log Analytics are provisioned automatically.
+- Prometheus and Grafana can be deployed in-cluster for additional metrics if desired.
+
+## Notes
+
+- PostgreSQL and Redis are now deployed as AKS workloads for faster iteration and simplified management.
+- All secrets are managed in Azure Key Vault and injected into workloads securely.
+- For production, ensure you review backup, scaling, and security settings in your environment's `variables.tf` and `tfvars` files.
 
 ## Architecture
 
@@ -27,55 +91,6 @@ This repository contains a production-ready Rails "Hello World" application with
 │  └─────────────┘  └──────────────┘  └───────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
-## Prerequisites
-
-### Required Tools
-
-- **Azure CLI** (>= 2.50.0)
-  ```bash
-  curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-  ```
-
-- **kubectl** (>= 1.28)
-  ```bash
-  az aks install-cli
-  ```
-
-- **Helm** (>= 3.12)
-  ```bash
-  curl https://get.helm.io/helm-v3.12.0-linux-amd64.tar.gz | tar xz
-  sudo mv linux-amd64/helm /usr/local/bin/
-  ```
-
-- **Terraform** (>= 1.5)
-  ```bash
-  wget https://releases.hashicorp.com/terraform/1.5.0/terraform_1.5.0_linux_amd64.zip
-  unzip terraform_1.5.0_linux_amd64.zip
-  sudo mv terraform /usr/local/bin/
-  ```
-
-- **Docker** (>= 24.0)
-- **Ruby** (>= 3.2) with Rails (>= 7.1)
-
-### Azure Account Setup
-
-1. Login to Azure:
-   ```bash
-   az login
-   ```
-
-2. Set your subscription:
-   ```bash
-   az account set --subscription "Your-Subscription-Name"
-   ```
-
-3. Create a service principal for automation:
-   ```bash
-   az ad sp create-for-rbac --name "rails-app-sp" --role contributor \
-     --scopes /subscriptions/{subscription-id} \
-     --sdk-auth > azure-credentials.json
-   ```
 
 ## Quick Start
 
