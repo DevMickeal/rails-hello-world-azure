@@ -1,0 +1,62 @@
+# Development environment values for rails-hello-world
+# Override base values for development deployment
+
+global:
+  environment: dev
+  domain: dev.your-domain.com
+
+rails:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/your-org/rails-hello-world
+    tag: dev
+  env:
+    RAILS_ENV: development
+    DATABASE_URL: "postgresql://postgres:password@dev-postgres-server:5432/rails_app_development"
+    REDIS_URL: "redis://rails-hello-world-redis:6379"
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    hosts:
+      - host: dev.rails-hello-world.your-domain.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: rails-hello-world-dev-tls
+        hosts:
+          - dev.rails-hello-world.your-domain.com
+  autoscaling:
+    enabled: false
+
+redis:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 1Gi
+
+prometheus:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 2Gi
+
+grafana:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 1Gi
+  adminPassword: "dev-admin-123"
+
+postgresql:
+  azure:
+    enabled: true
+    serverName: "dev-postgres-server"
+    databaseName: "rails_app_development"
+    username: "postgres"
+    passwordSecretName: "dev-postgres-password"
+    passwordSecretKey: "password" 

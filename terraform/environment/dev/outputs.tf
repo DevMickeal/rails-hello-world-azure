@@ -8,6 +8,16 @@ output "aks_cluster_name" {
   value       = module.aks.cluster_name
 }
 
+output "aks_resource_group" {
+  description = "Resource group for AKS"
+  value       = azurerm_resource_group.main.name
+}
+
+output "key_vault_name" {
+  description = "Key Vault name"
+  value       = module.security.key_vault_name
+}
+
 output "aks_get_credentials_command" {
   description = "Command to get AKS credentials"
   value       = "az aks get-credentials --resource-group ${module.networking.resource_group_name} --name ${module.aks.cluster_name}"

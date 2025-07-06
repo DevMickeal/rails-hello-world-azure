@@ -1,0 +1,106 @@
+name: Deploy Application Template
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: 'Environment name (dev/staging/prod)'
+      namespace:
+        required: true
+        type: string
+        description: 'Kubernetes namespace'
+      values_file:
+        required: true
+        type: string
+        description: 'Helm values file path'
+      aks_resource_group:
+        required: true
+        type: string
+        description: 'AKS resource group name'
+      aks_cluster_name:
+        required: true
+        type: string
+        description: 'AKS cluster name'
+      image_tag:
+        required: true
+        type: string
+        description: 'Docker image tag to deploy'
+      key_vault_name:
+        required: true
+        type: string
+        description: 'Azure Key Vault name for secrets'
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
+      RAILS_SECRET_KEY_BASE:
+        required: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        run: |
+          az aks get-credentials --resource-group ${{ inputs.aks_resource_group }} --name ${{ inputs.aks_cluster_name }} --overwrite-existing
+
+      - name: Fetch secrets from Key Vault
+        id: kv
+        run: |
+          set -e
+          export DB_SECRET_NAME="${{ env.IMAGE_NAME }}-${{ inputs.environment }}-postgres-connection"
+          export APPINSIGHTS_SECRET_NAME="${{ env.IMAGE_NAME }}-${{ inputs.environment }}-appinsights-key"
+          DB_URL=$(az keyvault secret show --vault-name ${{ inputs.key_vault_name }} --name "$DB_SECRET_NAME" --query value -o tsv)
+          APPINSIGHTS_KEY=$(az keyvault secret show --vault-name ${{ inputs.key_vault_name }} --name "$APPINSIGHTS_SECRET_NAME" --query value -o tsv)
+          echo "db_url=$DB_URL" >> $GITHUB_OUTPUT
+          echo "appinsights_key=$APPINSIGHTS_KEY" >> $GITHUB_OUTPUT
+
+      - name: Deploy to ${{ inputs.environment }}
+        run: |
+          echo "🚀 Deploying to ${{ inputs.environment }} environment..."
+          kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+          helm upgrade --install rails-hello-world-${{ inputs.environment }} ./helm \
+            --namespace ${{ inputs.namespace }} \
+            --values ${{ inputs.values_file }} \
+            --set rails.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set rails.image.tag=${{ inputs.image_tag }} \
+            --set rails.env.SECRET_KEY_BASE=${{ secrets.RAILS_SECRET_KEY_BASE }} \
+            --set rails.env.DATABASE_URL="${{ steps.kv.outputs.db_url }}" \
+            --set rails.env.APPINSIGHTS_INSTRUMENTATIONKEY="${{ steps.kv.outputs.appinsights_key }}" \
+            --wait \
+            --timeout 10m
+
+      - name: Verify deployment
+        run: |
+          kubectl wait --for=condition=available --timeout=300s deployment/rails-hello-world-${{ inputs.environment }}-rails -n ${{ inputs.namespace }}
+          kubectl wait --for=condition=available --timeout=300s deployment/rails-hello-world-${{ inputs.environment }}-redis -n ${{ inputs.namespace }}
+          kubectl wait --for=condition=available --timeout=300s deployment/rails-hello-world-${{ inputs.environment }}-prometheus -n ${{ inputs.namespace }}
+          kubectl wait --for=condition=available --timeout=300s deployment/rails-hello-world-${{ inputs.environment }}-grafana -n ${{ inputs.namespace }}
+
+      - name: Test endpoints
+        run: |
+          sleep 30
+          SERVICE_IP=$(kubectl get service rails-hello-world-${{ inputs.environment }}-rails -n ${{ inputs.namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          curl -f http://$SERVICE_IP:3000/health
+          curl -f http://$SERVICE_IP:3000/hello
+          curl -f http://$SERVICE_IP:3000/redis
+          curl -f http://$SERVICE_IP:3000/metrics 

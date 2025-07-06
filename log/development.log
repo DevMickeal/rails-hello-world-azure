@@ -1,0 +1,101 @@
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='RailsApp'*/[0m
+  [1m[35m (136.5ms)[0m  [1m[35mCREATE DATABASE "rails_app_development" ENCODING = 'unicode' /*application='RailsApp'*/[0m
+  [1m[35mSQL (0.7ms)[0m  [1m[35mSET search_path TO public /*application='RailsApp'*/[0m
+  [1m[35m (77.5ms)[0m  [1m[35mCREATE DATABASE "rails_app_test" ENCODING = 'unicode' /*application='RailsApp'*/[0m
+  [1m[35m (5.5ms)[0m  [1m[35mCREATE TABLE "schema_migrations" ("version" character varying NOT NULL PRIMARY KEY) /*application='RailsApp'*/[0m
+  [1m[35m (5.4ms)[0m  [1m[35mCREATE TABLE "ar_internal_metadata" ("key" character varying NOT NULL PRIMARY KEY, "value" character varying, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL) /*application='RailsApp'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[34mSELECT pg_try_advisory_lock(6302314972764189855) /*application='RailsApp'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='RailsApp'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='RailsApp'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Create (0.9ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('environment', 'development', '2025-07-05 21:26:21.946783', '2025-07-05 21:26:21.946785') RETURNING "key" /*application='RailsApp'*/[0m
+  [1m[35m (0.3ms)[0m  [1m[34mSELECT pg_advisory_unlock(6302314972764189855) /*application='RailsApp'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='RailsApp'*/[0m
+Started GET "/health" for ::1 at 2025-07-05 16:27:00 -0500
+  [1m[36mActiveRecord::SchemaMigration Load (2.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='RailsApp'*/[0m
+Processing by HelloController#health as */*
+Completed 200 OK in 9ms (Views: 0.2ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.7ms)
+
+
+Started GET "/hello" for ::1 at 2025-07-05 16:27:05 -0500
+  
+ActionController::RoutingError (No route matches [GET] "/hello"):
+  
+Started GET "/hello" for ::1 at 2025-07-05 16:27:28 -0500
+Processing by HelloController#hello as */*
+Completed 200 OK in 5ms (Views: 4.3ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/" for ::1 at 2025-07-05 16:27:34 -0500
+Processing by HelloController#hello as */*
+Completed 200 OK in 1ms (Views: 0.4ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/" for ::1 at 2025-07-05 16:29:33 -0500
+Processing by HelloController#hello as HTML
+Completed 200 OK in 11ms (Views: 2.4ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/favicon.ico" for ::1 at 2025-07-05 16:29:33 -0500
+  
+ActionController::RoutingError (No route matches [GET] "/favicon.ico"):
+  
+Started GET "/health" for ::1 at 2025-07-05 16:36:02 -0500
+Processing by HelloController#health as */*
+Completed 200 OK in 3ms (Views: 0.3ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/hello" for ::1 at 2025-07-05 16:36:02 -0500
+Processing by HelloController#hello as */*
+Completed 200 OK in 0ms (Views: 0.1ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/redis" for ::1 at 2025-07-05 16:36:02 -0500
+Processing by HelloController#redis_test as */*
+Completed 503 Service Unavailable in 1ms (Views: 0.1ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/" for ::1 at 2025-07-05 16:37:22 -0500
+  
+LoadError (cannot load such file -- redis):
+  
+app/controllers/hello_controller.rb:1:in '<main>'
+Started GET "/health" for ::1 at 2025-07-05 16:37:47 -0500
+  
+LoadError (cannot load such file -- redis):
+  
+app/controllers/hello_controller.rb:1:in '<main>'
+Started GET "/hello" for ::1 at 2025-07-05 16:37:47 -0500
+  
+LoadError (cannot load such file -- redis):
+  
+app/controllers/hello_controller.rb:1:in '<main>'
+Started GET "/redis" for ::1 at 2025-07-05 16:37:47 -0500
+  
+LoadError (cannot load such file -- redis):
+  
+app/controllers/hello_controller.rb:1:in '<main>'
+Started GET "/" for ::1 at 2025-07-05 16:40:05 -0500
+  
+LoadError (cannot load such file -- redis-client):
+  
+app/controllers/hello_controller.rb:1:in '<main>'
+Started GET "/health" for ::1 at 2025-07-05 16:40:22 -0500
+  
+LoadError (cannot load such file -- redis-client):
+  
+app/controllers/hello_controller.rb:1:in '<main>'
+Started GET "/hello" for ::1 at 2025-07-05 16:40:22 -0500
+  
+LoadError (cannot load such file -- redis-client):
+  
+app/controllers/hello_controller.rb:1:in '<main>'
+Started GET "/redis" for ::1 at 2025-07-05 16:40:22 -0500
+  
+LoadError (cannot load such file -- redis-client):
+  
+app/controllers/hello_controller.rb:1:in '<main>'
+Started GET "/" for ::1 at 2025-07-05 16:44:37 -0500
+Processing by HelloController#hello as HTML
+Completed 200 OK in 3ms (Views: 1.2ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+

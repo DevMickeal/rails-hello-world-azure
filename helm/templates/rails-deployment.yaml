@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rails-hello-world.fullname" . }}-rails
+  labels:
+    {{- include "rails-hello-world.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rails-api
+spec:
+  {{- if not .Values.rails.autoscaling.enabled }}
+  replicas: {{ .Values.rails.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rails-hello-world.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: rails-api
+  template:
+    metadata:
+      labels:
+        {{- include "rails-hello-world.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: rails-api
+      {{- with .Values.rails.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rails-hello-world.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.rails.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-rails
+          securityContext:
+            {{- toYaml .Values.rails.securityContext | nindent 12 }}
+          image: "{{ .Values.rails.image.repository }}:{{ .Values.rails.image.tag }}"
+          imagePullPolicy: {{ .Values.rails.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: RAILS_ENV
+              value: {{ .Values.rails.env.RAILS_ENV }}
+            - name: RAILS_LOG_TO_STDOUT
+              value: {{ .Values.rails.env.RAILS_LOG_TO_STDOUT }}
+            - name: DATABASE_URL
+              value: {{ .Values.rails.env.DATABASE_URL }}
+            - name: REDIS_URL
+              value: {{ .Values.rails.env.REDIS_URL }}
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rails-hello-world.fullname" . }}-secrets
+                  key: secret-key-base
+          livenessProbe:
+            {{- toYaml .Values.rails.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.rails.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.rails.resources | nindent 12 }}
+      {{- with .Values.rails.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rails.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rails.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }} 

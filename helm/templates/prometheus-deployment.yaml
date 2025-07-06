@@ -1,0 +1,78 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rails-hello-world.fullname" . }}-prometheus
+  labels:
+    {{- include "rails-hello-world.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  replicas: {{ .Values.prometheus.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rails-hello-world.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: prometheus
+  template:
+    metadata:
+      labels:
+        {{- include "rails-hello-world.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: prometheus
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}-prometheus
+          image: "{{ .Values.prometheus.image.repository }}:{{ .Values.prometheus.image.tag }}"
+          imagePullPolicy: {{ .Values.prometheus.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          args:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.path=/prometheus'
+            - '--web.console.libraries=/etc/prometheus/console_libraries'
+            - '--web.console.templates=/etc/prometheus/consoles'
+            - '--storage.tsdb.retention.time=200h'
+            - '--web.enable-lifecycle'
+          resources:
+            {{- toYaml .Values.prometheus.resources | nindent 12 }}
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-data
+              mountPath: /prometheus
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: {{ include "rails-hello-world.fullname" . }}-prometheus-config
+        - name: prometheus-data
+          persistentVolumeClaim:
+            claimName: {{ include "rails-hello-world.fullname" . }}-prometheus
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rails-hello-world.fullname" . }}-prometheus-config
+  labels:
+    {{- include "rails-hello-world.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+data:
+  prometheus.yml: |
+    {{- toYaml .Values.prometheus.config | nindent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "rails-hello-world.fullname" . }}-prometheus
+  labels:
+    {{- include "rails-hello-world.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.prometheus.persistence.size }}
+  {{- if .Values.global.storageClass }}
+  storageClassName: {{ .Values.global.storageClass }}
+  {{- end }}
+{{- end }} 

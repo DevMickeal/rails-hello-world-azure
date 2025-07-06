@@ -1,0 +1,35 @@
+# Local development values for rails-hello-world
+# Override base values for local Kubernetes cluster (minikube, kind, etc.)
+
+global:
+  environment: local
+  domain: localhost
+
+rails:
+  image:
+    repository: rails-hello-world
+    tag: latest
+  env:
+    RAILS_ENV: development
+    DATABASE_URL: "postgresql://postgres:password@postgres-service:5432/rails_app_development"
+    REDIS_URL: "redis://rails-hello-world-redis:6379"
+  service:
+    type: LoadBalancer
+  ingress:
+    enabled: false
+
+redis:
+  enabled: true
+  persistence:
+    enabled: false
+
+prometheus:
+  enabled: true
+  persistence:
+    enabled: false
+
+grafana:
+  enabled: true
+  persistence:
+    enabled: false
+  adminPassword: admin123 

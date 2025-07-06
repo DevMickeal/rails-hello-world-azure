@@ -1,0 +1,64 @@
+# Staging environment values for rails-hello-world
+# Override base values for staging deployment
+
+global:
+  environment: staging
+  domain: staging.your-domain.com
+
+rails:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/your-org/rails-hello-world
+    tag: staging
+  env:
+    RAILS_ENV: staging
+    DATABASE_URL: "postgresql://postgres:password@staging-postgres-server:5432/rails_app_staging"
+    REDIS_URL: "redis://rails-hello-world-redis:6379"
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    hosts:
+      - host: staging.rails-hello-world.your-domain.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: rails-hello-world-staging-tls
+        hosts:
+          - staging.rails-hello-world.your-domain.com
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+
+redis:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 2Gi
+
+prometheus:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 5Gi
+
+grafana:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 2Gi
+  adminPassword: "staging-admin-123"
+
+postgresql:
+  azure:
+    enabled: true
+    serverName: "staging-postgres-server"
+    databaseName: "rails_app_staging"
+    username: "postgres"
+    passwordSecretName: "staging-postgres-password"
+    passwordSecretKey: "password" 

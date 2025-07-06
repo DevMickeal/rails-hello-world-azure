@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rails-hello-world.fullname" . }}-rails
+  labels:
+    {{- include "rails-hello-world.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rails-api
+spec:
+  type: {{ .Values.rails.service.type }}
+  ports:
+    - port: {{ .Values.rails.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "rails-hello-world.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rails-api 

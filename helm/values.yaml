@@ -1,0 +1,203 @@
+# Default values for rails-hello-world
+# This is a YAML-formatted file.
+
+# Global Configuration
+global:
+  environment: development
+  domain: localhost
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+  annotations: {}
+
+# Rails API Configuration
+rails:
+  replicaCount: 1
+  image:
+    repository: rails-hello-world
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  nameOverride: ""
+  fullnameOverride: ""
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  service:
+    type: ClusterIP
+    port: 3000
+  ingress:
+    enabled: false
+    className: "nginx"
+    annotations: {}
+    hosts: []
+    tls: []
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  env:
+    RAILS_ENV: development
+    RAILS_LOG_TO_STDOUT: "true"
+    DATABASE_URL: "postgresql://postgres:password@localhost:5432/rails_app_development"
+    REDIS_URL: "redis://localhost:6379"
+    SECRET_KEY_BASE: ""
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Redis Configuration
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 6379
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  persistence:
+    enabled: false
+    size: 1Gi
+  livenessProbe:
+    tcpSocket:
+      port: 6379
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    tcpSocket:
+      port: 6379
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Prometheus Configuration
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: "v2.45.0"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 9090
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  persistence:
+    enabled: false
+    size: 10Gi
+  config:
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    rule_files: []
+    scrape_configs:
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+      - job_name: 'rails-api'
+        static_configs:
+          - targets: ['rails-service:3000']
+        metrics_path: /metrics
+        scrape_interval: 15s
+
+# Grafana Configuration
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: "10.0.0"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  persistence:
+    enabled: false
+    size: 5Gi
+  adminPassword: "admin123"
+  datasources:
+    prometheus:
+      url: "http://prometheus-service:9090"
+      access: "proxy"
+      isDefault: true
+  dashboards:
+    default:
+      rails-api:
+        gnetId: 1860
+        revision: 22
+        datasource: Prometheus
+
+# PostgreSQL Configuration (using Azure Database)
+postgresql:
+  enabled: false  # Using Azure managed PostgreSQL instead
+  azure:
+    enabled: false
+    serverName: ""
+    databaseName: ""
+    username: ""
+    passwordSecretName: ""
+    passwordSecretKey: "" 

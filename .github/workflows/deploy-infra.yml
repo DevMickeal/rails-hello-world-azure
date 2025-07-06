@@ -33,6 +33,11 @@ jobs:
         shell: bash
         working-directory: terraform/environment/${{ inputs.env_dir }}
 
+    outputs:
+      aks_cluster_name: ${{ steps.aks.outputs.value }}
+      aks_resource_group: ${{ steps.rg.outputs.value }}
+      key_vault_name: ${{ steps.kv.outputs.value }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -64,6 +69,18 @@ jobs:
       - name: Terraform Apply
         if: github.event_name == 'workflow_call' || github.event_name == 'push'
         run: terraform apply -auto-approve tfplan
+
+      - name: Get AKS Cluster Name
+        id: aks
+        run: echo "value=$(terraform output -raw aks_cluster_name)" >> $GITHUB_OUTPUT
+
+      - name: Get AKS Resource Group
+        id: rg
+        run: echo "value=$(terraform output -raw aks_resource_group)" >> $GITHUB_OUTPUT
+
+      - name: Get Key Vault Name
+        id: kv
+        run: echo "value=$(terraform output -raw key_vault_name)" >> $GITHUB_OUTPUT
 
       - name: Logout Azure
         if: always()
