@@ -80,12 +80,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          login-server: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Extract metadata
         id: meta
@@ -132,7 +132,11 @@ jobs:
           echo "::set-output name=aks_cluster_name::$(terraform output -raw aks_cluster_name)"
           echo "::set-output name=aks_resource_group::$(terraform output -raw aks_resource_group)"
           echo "::set-output name=key_vault_name::$(terraform output -raw key_vault_name)"
+          echo "::set-output name=acr_login_server::$(terraform output -raw acr_login_server)"
         id: tf
+
+      - name: Set ACR registry env
+        run: echo "REGISTRY=${{ steps.tf.outputs.acr_login_server }}" >> $GITHUB_ENV
 
       - name: Set AKS context
         run: |
@@ -188,7 +192,11 @@ jobs:
           echo "::set-output name=aks_cluster_name::$(terraform output -raw aks_cluster_name)"
           echo "::set-output name=aks_resource_group::$(terraform output -raw aks_resource_group)"
           echo "::set-output name=key_vault_name::$(terraform output -raw key_vault_name)"
+          echo "::set-output name=acr_login_server::$(terraform output -raw acr_login_server)"
         id: tf
+
+      - name: Set ACR registry env
+        run: echo "REGISTRY=${{ steps.tf.outputs.acr_login_server }}" >> $GITHUB_ENV
 
       - name: Set AKS context
         run: |
@@ -244,7 +252,11 @@ jobs:
           echo "::set-output name=aks_cluster_name::$(terraform output -raw aks_cluster_name)"
           echo "::set-output name=aks_resource_group::$(terraform output -raw aks_resource_group)"
           echo "::set-output name=key_vault_name::$(terraform output -raw key_vault_name)"
+          echo "::set-output name=acr_login_server::$(terraform output -raw acr_login_server)"
         id: tf
+
+      - name: Set ACR registry env
+        run: echo "REGISTRY=${{ steps.tf.outputs.acr_login_server }}" >> $GITHUB_ENV
 
       - name: Set AKS context
         run: |
