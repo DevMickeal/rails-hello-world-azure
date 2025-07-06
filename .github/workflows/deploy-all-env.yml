@@ -120,8 +120,8 @@ jobs:
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.REGISTRY }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          username: ${{ needs.deploy-dev-infra.outputs.acr_admin_username }}
+          password: ${{ needs.deploy-dev-infra.outputs.acr_admin_password }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -178,8 +178,8 @@ jobs:
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.REGISTRY }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          username: ${{ needs.deploy-staging-infra.outputs.acr_admin_username }}
+          password: ${{ needs.deploy-staging-infra.outputs.acr_admin_password }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -236,8 +236,8 @@ jobs:
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.REGISTRY }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          username: ${{ needs.deploy-prod-infra.outputs.acr_admin_username }}
+          password: ${{ needs.deploy-prod-infra.outputs.acr_admin_password }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:

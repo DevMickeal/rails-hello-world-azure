@@ -38,6 +38,8 @@ jobs:
       aks_resource_group: ${{ steps.rg.outputs.value }}
       key_vault_name: ${{ steps.kv.outputs.value }}
       acr_login_server: ${{ steps.acr.outputs.value }}
+      acr_admin_username: ${{ steps.acr_user.outputs.value }}
+      acr_admin_password: ${{ steps.acr_pass.outputs.value }}
 
     steps:
       - name: Checkout repository
@@ -86,6 +88,14 @@ jobs:
       - name: Get ACR Login Server
         id: acr
         run: echo "value=$(terraform output -raw acr_login_server)" >> $GITHUB_OUTPUT
+
+      - name: Get ACR Admin Username
+        id: acr_user
+        run: echo "value=$(terraform output -raw acr_admin_username)" >> $GITHUB_OUTPUT
+
+      - name: Get ACR Admin Password
+        id: acr_pass
+        run: echo "value=$(terraform output -raw acr_admin_password)" >> $GITHUB_OUTPUT
 
       - name: Logout Azure
         if: always()
