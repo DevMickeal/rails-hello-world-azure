@@ -94,37 +94,14 @@ jobs:
             type=sha
 
   deploy-infra-dev:
-    runs-on: ubuntu-latest
     needs: test-and-build
-    env:
-      ENV_DIR: dev
-    outputs:
-      aks_cluster_name: ${{ steps.tf.outputs.aks_cluster_name }}
-      aks_resource_group: ${{ steps.tf.outputs.aks_resource_group }}
-      key_vault_name: ${{ steps.tf.outputs.key_vault_name }}
-      acr_login_server: ${{ steps.tf.outputs.acr_login_server }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy Infrastructure (Terraform)
-        run: |
-          cd terraform/environment/${{ env.ENV_DIR }}
-          terraform init
-          terraform apply -auto-approve
-          echo "::set-output name=aks_cluster_name::$(terraform output -raw aks_cluster_name)"
-          echo "::set-output name=aks_resource_group::$(terraform output -raw aks_resource_group)"
-          echo "::set-output name=key_vault_name::$(terraform output -raw key_vault_name)"
-          echo "::set-output name=acr_login_server::$(terraform output -raw acr_login_server)"
-        id: tf
+    uses: ./.github/workflows/deploy-infra.yml
+    with:
+      env_dir: dev
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
   build-and-push-image-dev:
     runs-on: ubuntu-latest
@@ -268,6 +245,16 @@ jobs:
             --wait \
             --timeout 10m
 
+  deploy-infra-staging:
+    needs: test-and-build
+    uses: ./.github/workflows/deploy-infra.yml
+    with:
+      env_dir: staging
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
   deploy-staging:
     runs-on: ubuntu-latest
     needs: deploy-dev
@@ -330,6 +317,16 @@ jobs:
             --set rails.env.APPINSIGHTS_INSTRUMENTATIONKEY="${{ steps.kv.outputs.appinsights_key }}" \
             --wait \
             --timeout 10m
+
+  deploy-infra-prod:
+    needs: test-and-build
+    uses: ./.github/workflows/deploy-infra.yml
+    with:
+      env_dir: prod
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
   deploy-prod:
     runs-on: ubuntu-latest
