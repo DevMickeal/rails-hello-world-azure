@@ -41,6 +41,8 @@ jobs:
           --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
+      image_labels: ${{ steps.meta.outputs.labels }}
+      image_tags: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -80,6 +82,64 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: rails-hello-world
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+  deploy-infra-dev:
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    env:
+      ENV_DIR: dev
+    outputs:
+      aks_cluster_name: ${{ steps.tf.outputs.aks_cluster_name }}
+      aks_resource_group: ${{ steps.tf.outputs.aks_resource_group }}
+      key_vault_name: ${{ steps.tf.outputs.key_vault_name }}
+      acr_login_server: ${{ steps.tf.outputs.acr_login_server }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Infrastructure (Terraform)
+        run: |
+          cd terraform/environment/${{ env.ENV_DIR }}
+          terraform init
+          terraform apply -auto-approve
+          echo "::set-output name=aks_cluster_name::$(terraform output -raw aks_cluster_name)"
+          echo "::set-output name=aks_resource_group::$(terraform output -raw aks_resource_group)"
+          echo "::set-output name=key_vault_name::$(terraform output -raw key_vault_name)"
+          echo "::set-output name=acr_login_server::$(terraform output -raw acr_login_server)"
+        id: tf
+
+  build-and-push-image-dev:
+    runs-on: ubuntu-latest
+    needs: deploy-infra-dev
+    env:
+      REGISTRY: ${{ needs.deploy-infra-dev.outputs.acr_login_server }}
+      IMAGE_NAME: rails-hello-world
+    outputs:
+      image_tag: ${{ needs.test-and-build.outputs.image_tag }}
+      image_labels: ${{ needs.test-and-build.outputs.image_labels }}
+      image_tags: ${{ needs.test-and-build.outputs.image_tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Azure Container Registry
         uses: azure/docker-login@v1
         with:
@@ -87,30 +147,67 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ needs.test-and-build.outputs.image_tags }}
+          labels: ${{ needs.test-and-build.outputs.image_labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  deploy-app-dev:
+    runs-on: ubuntu-latest
+    needs: build-and-push-image-dev
+    env:
+      ENV_DIR: dev
+      NAMESPACE: rails-hello-world-dev
+      VALUES_FILE: helm/values-dev.yaml
+      REGISTRY: ${{ needs.deploy-infra-dev.outputs.acr_login_server }}
+      IMAGE_NAME: rails-hello-world
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        run: |
+          az aks get-credentials --resource-group ${{ needs.deploy-infra-dev.outputs.aks_resource_group }} --name ${{ needs.deploy-infra-dev.outputs.aks_cluster_name }} --overwrite-existing
+
+      - name: Fetch secrets from Key Vault
+        id: kv
+        run: |
+          DB_URL=$(az keyvault secret show --vault-name ${{ needs.deploy-infra-dev.outputs.key_vault_name }} --name "${{ env.IMAGE_NAME }}-${{ env.ENV_DIR }}-postgres-connection" --query value -o tsv)
+          APPINSIGHTS_KEY=$(az keyvault secret show --vault-name ${{ needs.deploy-infra-dev.outputs.key_vault_name }} --name "${{ env.IMAGE_NAME }}-${{ env.ENV_DIR }}-appinsights-key" --query value -o tsv)
+          echo "::set-output name=db_url::$DB_URL"
+          echo "::set-output name=appinsights_key::$APPINSIGHTS_KEY"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Deploy App (Helm)
+        run: |
+          helm upgrade --install rails-hello-world-${{ env.ENV_DIR }} ./helm \
+            --namespace ${{ env.NAMESPACE }} \
+            --values ${{ env.VALUES_FILE }} \
+            --set rails.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set rails.image.tag=${{ needs.test-and-build.outputs.image_tag }} \
+            --set rails.env.SECRET_KEY_BASE=${{ secrets.RAILS_SECRET_KEY_BASE }} \
+            --set rails.env.DATABASE_URL="${{ steps.kv.outputs.db_url }}" \
+            --set rails.env.APPINSIGHTS_INSTRUMENTATIONKEY="${{ steps.kv.outputs.appinsights_key }}" \
+            --wait \
+            --timeout 10m
+
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: test-and-build
+    needs: deploy-app-dev
     env:
       ENV_DIR: dev
       NAMESPACE: rails-hello-world-dev
