@@ -143,13 +143,14 @@ jobs:
       aks_cluster_name: ${{ needs.deploy-dev-infra.outputs.aks_cluster_name }}
       image_tag: ${{ needs.test-and-build.outputs.image_tag }}
       key_vault_name: ${{ needs.deploy-dev-infra.outputs.key_vault_name }}
+      registry: ${{ needs.deploy-dev-infra.outputs.acr_login_server }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
       RAILS_SECRET_KEY_BASE: ${{ secrets.RAILS_SECRET_KEY_BASE }}
 
   # Deploy Staging Stage
   deploy-staging-infra:
-    needs: test-and-build
+    needs: deploy-dev-app
     uses: ./.github/workflows/deploy-infra.yml
     with:
       env_dir: staging
@@ -200,13 +201,14 @@ jobs:
       aks_cluster_name: ${{ needs.deploy-staging-infra.outputs.aks_cluster_name }}
       image_tag: ${{ needs.test-and-build.outputs.image_tag }}
       key_vault_name: ${{ needs.deploy-staging-infra.outputs.key_vault_name }}
+      registry: ${{ needs.deploy-staging-infra.outputs.acr_login_server }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
       RAILS_SECRET_KEY_BASE: ${{ secrets.RAILS_SECRET_KEY_BASE }}
 
   # Deploy Prod Stage
   deploy-prod-infra:
-    needs: test-and-build
+    needs: deploy-staging-app
     uses: ./.github/workflows/deploy-infra.yml
     with:
       env_dir: prod
@@ -257,6 +259,7 @@ jobs:
       aks_cluster_name: ${{ needs.deploy-prod-infra.outputs.aks_cluster_name }}
       image_tag: ${{ needs.test-and-build.outputs.image_tag }}
       key_vault_name: ${{ needs.deploy-prod-infra.outputs.key_vault_name }}
+      registry: ${{ needs.deploy-prod-infra.outputs.acr_login_server }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
       RAILS_SECRET_KEY_BASE: ${{ secrets.RAILS_SECRET_KEY_BASE }}
