@@ -116,7 +116,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Log in to Azure Container Registry
+      - name: Log in to Azure Container Registry (dev)
+        if: ${{ env.REGISTRY != '' && needs.deploy-dev-infra.outputs.acr_admin_username != '' }}
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.REGISTRY }}
@@ -174,7 +175,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Log in to Azure Container Registry
+      - name: Log in to Azure Container Registry (staging)
+        if: ${{ env.REGISTRY != '' && needs.deploy-staging-infra.outputs.acr_admin_username != '' }}
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.REGISTRY }}
@@ -232,12 +234,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Log in to Azure Container Registry
+      - name: Log in to Azure Container Registry (prod)
+        if: ${{ env.REGISTRY != '' && (needs.deploy-prod-infra.outputs.acr_admin_username == '' || needs.deploy-prod-infra.outputs.acr_admin_username == null) }}
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.REGISTRY }}
-          username: ${{ needs.deploy-prod-infra.outputs.acr_admin_username }}
-          password: ${{ needs.deploy-prod-infra.outputs.acr_admin_password }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
