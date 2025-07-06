@@ -12,8 +12,10 @@ rails:
     tag: staging
   env:
     RAILS_ENV: staging
-    DATABASE_URL: "postgresql://postgres:password@staging-postgres-server:5432/rails_app_staging"
-    REDIS_URL: "redis://rails-hello-world-redis:6379"
+    # DATABASE_URL is injected from Key Vault at deploy time
+    DATABASE_URL: ""
+    # REDIS_URL is injected from Helm or environment
+    REDIS_URL: ""
   service:
     type: ClusterIP
   ingress:

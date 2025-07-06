@@ -12,8 +12,10 @@ rails:
     tag: latest
   env:
     RAILS_ENV: production
-    DATABASE_URL: "postgresql://postgres:password@production-postgres-server:5432/rails_app_production"
-    REDIS_URL: "redis://rails-hello-world-redis:6379"
+    # DATABASE_URL is injected from Key Vault at deploy time
+    DATABASE_URL: ""
+    # REDIS_URL is injected from Helm or environment
+    REDIS_URL: ""
   service:
     type: ClusterIP
   ingress:

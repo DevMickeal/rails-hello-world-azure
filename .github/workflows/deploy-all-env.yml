@@ -22,6 +22,23 @@ env:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: rails_app_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=10s --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
     steps:
@@ -40,15 +57,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Start PostgreSQL and Redis
-        run: |
-          docker-compose up -d postgres redis
-          sleep 10
-
       - name: Run database setup
         run: |
           SECRET_KEY_BASE=$(bin/rails secret) bin/rails db:create
           SECRET_KEY_BASE=$(bin/rails secret) bin/rails db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/rails_app_test
+          REDIS_URL: redis://localhost:6379
 
       - name: Run tests
         run: |
