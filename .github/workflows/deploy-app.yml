@@ -31,6 +31,10 @@ on:
         required: true
         type: string
         description: 'Azure Key Vault name for secrets'
+      registry:
+        required: true
+        type: string
+        description: 'Container registry login server'
     secrets:
       AZURE_CREDENTIALS:
         required: true
@@ -38,7 +42,6 @@ on:
         required: true
 
 env:
-  REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -81,7 +84,7 @@ jobs:
           helm upgrade --install rails-hello-world-${{ inputs.environment }} ./helm \
             --namespace ${{ inputs.namespace }} \
             --values ${{ inputs.values_file }} \
-            --set rails.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set rails.image.repository=${{ inputs.registry }}/rails-hello-world \
             --set rails.image.tag=${{ inputs.image_tag }} \
             --set rails.env.SECRET_KEY_BASE=${{ secrets.RAILS_SECRET_KEY_BASE }} \
             --set rails.env.DATABASE_URL="${{ steps.kv.outputs.db_url }}" \
