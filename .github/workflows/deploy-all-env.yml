@@ -74,7 +74,7 @@ jobs:
 
       - name: Run security checks
         run: |
-          bundle exec brakeman --no-progress --output-format json --output brakeman-report.json
+          bundle exec brakeman --no-progress --format json --output brakeman-report.json
           bundle exec bundle-audit check --update
 
       - name: Set up Docker Buildx
